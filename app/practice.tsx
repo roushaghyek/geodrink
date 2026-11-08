@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +12,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useTempUnit } from '../contexts/TempUnitContext';
 import { bandEmoji, evaluateGuess, formatDegreesOff, GuessEvaluation } from '../engine/scoring';
 import { gameTemperature } from '../engine/weather/types';
+import { useGoHome } from '../hooks/use-go-home';
 import { usePalette } from '../hooks/use-palette';
 import { useWeatherCities } from '../hooks/use-weather-cities';
 import { loadSounds, playCorrectSound, playWrongSound, unloadSounds } from '../services/audio';
@@ -22,7 +22,7 @@ const ROUNDS = 10;
 
 /** Practice: the original single-player game on the shared engine. */
 export default function PracticeScreen() {
-  const router = useRouter();
+  const goHome = useGoHome();
   const colors = usePalette();
   const { t } = useLanguage();
   const { unit } = useTempUnit();
@@ -114,7 +114,7 @@ export default function PracticeScreen() {
             <Pressable style={[styles.primary, { backgroundColor: colors.brand }]} onPress={restart} accessibilityRole="button" testID="play-again-button">
               <Text style={[styles.primaryText, { color: colors.brandForeground }]}>{t('playAgain')}</Text>
             </Pressable>
-            <Pressable style={styles.secondary} onPress={() => router.replace('/')} accessibilityRole="button" testID="exit-home-button">
+            <Pressable style={styles.secondary} onPress={goHome} accessibilityRole="button" testID="exit-home-button">
               <Ionicons name="home" size={20} color={colors.brand} />
               <Text style={[styles.secondaryText, { color: colors.brand }]}>{t('exitToHome')}</Text>
             </Pressable>

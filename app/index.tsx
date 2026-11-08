@@ -17,6 +17,7 @@ import { DemoWeatherBadge } from "../components/game/WeatherNotice";
 import { usePalette } from "../hooks/use-palette";
 import { dailyIndex, dailyStreak, findDailyResult } from "../engine/daily";
 import { loadDailyHistory } from "../services/daily-store";
+import { getJSON, STORAGE_KEYS } from "../utils/storage";
 const styles = S.home;
 
 export default function HomeScreen() {
@@ -84,11 +85,13 @@ function GameHomeView() {
   const { t } = useLanguage();
   const [funFact, setFunFact] = useState<string>('');
   const [dailyBadge, setDailyBadge] = useState<string>(t('dailyNew'));
+  const [hotColdBest, setHotColdBest] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       // A new fun fact each time the screen comes into focus
       setFunFact(getRandomFunFact());
+      getJSON<number>(STORAGE_KEYS.hotColdBest, 0).then(setHotColdBest);
       loadDailyHistory().then(history => {
         const today = dailyIndex();
         const streak = dailyStreak(history, today).current;
@@ -136,6 +139,7 @@ function GameHomeView() {
               title={t('hotOrCold')}
               subtitle={t('hotColdCardSubtitle')}
               icon="swap-horizontal"
+              badge={hotColdBest > 0 ? `🏆 ${hotColdBest}` : undefined}
               onPress={() => router.push('/hot-or-cold' as never)}
               testID="hot-or-cold-button"
             />

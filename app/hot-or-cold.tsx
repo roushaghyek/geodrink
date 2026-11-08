@@ -1,424 +1,307 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ThemedText } from '../components/themed-text';
-import { ThemedView } from '../components/themed-view';
-import { Colors } from '../constants/theme';
+import { ScreenHeader } from '../components/game/ScreenHeader';
+import { Scrooby } from '../components/game/Scrooby';
+import { DemoWeatherBadge, WeatherError } from '../components/game/WeatherNotice';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useSession } from '../contexts/SessionContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTempUnit } from '../contexts/TempUnitContext';
+import { HotColdPair, hotterSide, isCorrectPick, nextPair, Side, updateHighScore } from '../engine/hot-or-cold';
+import { formatTemp } from '../engine/scoring';
+import { gameTemperature } from '../engine/weather/types';
+import { useCityQueue } from '../hooks/use-city-queue';
+import { useGoHome } from '../hooks/use-go-home';
+import { usePalette } from '../hooks/use-palette';
 import { loadSounds, playCorrectSound, playWrongSound, unloadSounds } from '../services/audio';
-import { weatherClient } from '../services/weather';
-import { withWeather } from '../engine/weather/client';
-import { getBalancedRandomCities } from '../utils/city-selection';
-import {
-  buildHotColdMatchups,
-  CityWithTemperature,
-  getHotColdAnswer,
-  getHotColdRoundCount,
-  HotColdMatchup,
-  HotColdSide,
-  isCorrectHotColdPick,
-} from '../utils/hot-or-cold';
-import { parsePartyConfiguration } from '../utils/party-configuration';
-import { celsiusToFahrenheit, getTempUnit } from '../utils/storage';
-import { getThemeStyles, toRgba } from '../utils/theme-colors';
-import { gameStyles } from '../components/game/styles';
+import { getJSON, setJSON, STORAGE_KEYS } from '../utils/storage';
+import { toRgba } from '../utils/theme-colors';
 
+type Phase = 'loading' | 'picking' | 'revealed' | 'over' | 'error';
+
+/**
+ * Endless Hotter or Colder: tap the hotter city; one miss ends the run.
+ * Chain format: the newer city stays (temperature already known) and a
+ * fresh one joins. See engine/hot-or-cold.ts.
+ */
 export default function HotOrColdScreen() {
-  const router = useRouter();
-  const { startSession } = useSession();
-  const { isDark } = useTheme();
+  const goHome = useGoHome();
+  const colors = usePalette();
   const { t } = useLanguage();
-  const { mode: modeParam, playerCount: playerCountParam, names: namesParam } =
-    useLocalSearchParams<{ mode?: string; playerCount?: string | string[]; names?: string | string[] }>();
-  const mode: 'classic' | 'party' = modeParam === 'party' ? 'party' : 'classic';
-  const partyConfiguration = parsePartyConfiguration(playerCountParam, namesParam);
-  const hasValidPartyConfiguration = mode !== 'party' || partyConfiguration !== null;
-  const playerCount = partyConfiguration?.playerCount ?? 1;
-  const playerNames = partyConfiguration?.names ?? ['Player 1'];
-  const totalRounds = getHotColdRoundCount(mode, playerCount);
+  const { unit } = useTempUnit();
+  const { take } = useCityQueue();
+  const [pair, setPair] = useState<HotColdPair | null>(null);
+  const [phase, setPhase] = useState<Phase>('loading');
+  const [picked, setPicked] = useState<Side | null>(null);
+  const [score, setScore] = useState(0);
+  const [best, setBest] = useState(0);
+  const [isNewBest, setIsNewBest] = useState(false);
+  const reveal = useRef(new Animated.Value(0)).current;
 
-  const [matchups, setMatchups] = useState<HotColdMatchup[]>([]);
-  const [roundIndex, setRoundIndex] = useState(0); // 0-based
-  const [picked, setPicked] = useState<HotColdSide | null>(null);
-  const [gameState, setGameState] = useState<'playing' | 'revealed' | 'roundComplete'>('playing');
-  const [playerScores, setPlayerScores] = useState<number[]>(() => Array(playerCount).fill(0));
-  const [score, setScore] = useState({ correct: 0, incorrect: 0 });
-  const [tempUnit, setTempUnit] = useState<'C' | 'F'>('C');
-  const resultAnim = useRef(new Animated.Value(0)).current;
-
-  const colors = isDark ? Colors.dark : Colors.light;
-  const themeStyles = getThemeStyles(isDark);
-  const hotColor = colors.destructive;
-  const coldColor = colors.primary;
-
-  useEffect(() => {
-    startSession();
-  }, [startSession]);
-
-  const initGame = useCallback(async () => {
-    setTempUnit(await getTempUnit());
-    const cities = getBalancedRandomCities(totalRounds * 2, Math.max(1, playerCount));
-    const { ok } = await withWeather(weatherClient, cities);
-    const withTemps: CityWithTemperature[] = ok.map(({ city, weather }) => ({ ...city, temperature: Math.round(weather.tempC) }));
-    setMatchups(buildHotColdMatchups(withTemps));
-  }, [playerCount, totalRounds]);
-
-  useEffect(() => {
-    if (!hasValidPartyConfiguration) {
-      router.replace('/party-setup');
+  const start = useCallback(async () => {
+    setPhase('loading');
+    setPicked(null);
+    setScore(0);
+    setIsNewBest(false);
+    const left = await take();
+    const right = left ? await take() : null;
+    if (!left || !right) {
+      setPhase('error');
       return;
     }
-    initGame();
+    setPair({ left, right });
+    setPhase('picking');
+  }, [take]);
+
+  useEffect(() => {
+    getJSON<number>(STORAGE_KEYS.hotColdBest, 0).then(setBest);
     loadSounds();
+    start();
     return () => {
       unloadSounds();
     };
-  }, [hasValidPartyConfiguration, initGame, router]);
+  }, [start]);
 
   useEffect(() => {
-    if (gameState !== 'revealed') {
-      resultAnim.setValue(0);
+    if (phase !== 'revealed' && phase !== 'over') {
+      reveal.setValue(0);
       return;
     }
-    Animated.timing(resultAnim, {
-      toValue: 1,
-      duration: 260,
-      easing: Easing.out(Easing.back(1.6)),
-      useNativeDriver: true,
-    }).start();
-  }, [gameState, resultAnim]);
+    Animated.timing(reveal, { toValue: 1, duration: 280, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }).start();
+  }, [phase, reveal]);
 
-  const matchup = matchups[roundIndex];
-  const currentPlayerIndex = roundIndex % playerCount;
-  const isLastRound = roundIndex >= matchups.length - 1;
-
-  const formatTemp = (celsius: number) =>
-    `${tempUnit === 'F' ? Math.round(celsiusToFahrenheit(celsius)) : celsius}°${tempUnit}`;
-
-  const handlePick = (side: HotColdSide) => {
-    if (!matchup || gameState !== 'playing') return;
-    const correct = isCorrectHotColdPick(matchup, side);
+  const pick = (side: Side) => {
+    if (!pair || phase !== 'picking') return;
     setPicked(side);
-    if (mode === 'party') {
-      setPlayerScores(prev => prev.map((s, i) => (i === currentPlayerIndex && correct ? s + 1 : s)));
+    if (isCorrectPick(pair, side)) {
+      const nextScore = score + 1;
+      setScore(nextScore);
+      // Saved as you go, so leaving mid-run still records the best.
+      if (nextScore > best) {
+        setBest(nextScore);
+        setIsNewBest(true);
+        setJSON(STORAGE_KEYS.hotColdBest, updateHighScore(best, nextScore));
+      }
+      playCorrectSound();
+      setPhase('revealed');
     } else {
-      setScore(prev => (correct ? { ...prev, correct: prev.correct + 1 } : { ...prev, incorrect: prev.incorrect + 1 }));
+      playWrongSound();
+      setPhase('over');
     }
-    if (correct) playCorrectSound(); else playWrongSound();
-    setGameState('revealed');
   };
 
-  const handleNext = () => {
-    if (isLastRound) {
-      setGameState('roundComplete');
+  const next = async () => {
+    if (!pair) return;
+    setPhase('loading');
+    const incoming = await take();
+    if (!incoming) {
+      setPhase('error');
       return;
     }
-    setRoundIndex(i => i + 1);
+    setPair(nextPair(pair, incoming));
     setPicked(null);
-    setGameState('playing');
+    setPhase('picking');
   };
 
-  if (!hasValidPartyConfiguration || !matchup) {
+  const header = (
+    <ScreenHeader
+      title={t('hotOrCold')}
+      right={
+        <Text style={[styles.headerScore, { color: colors.mutedForeground }]} accessibilityLabel={`${t('bestStreak')}: ${best}`}>
+          🏆 {best}
+        </Text>
+      }
+    />
+  );
+
+  if (phase === 'error') {
     return (
-      <ThemedView style={gameStyles.container}>
-        <SafeAreaView style={gameStyles.container} edges={['top']}>
-          <View style={gameStyles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <ThemedText style={gameStyles.loadingText}>{t('loadingCity')}</ThemedText>
-          </View>
-        </SafeAreaView>
-      </ThemedView>
+      <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top']}>
+        <View style={styles.pad}>{header}</View>
+        <WeatherError onRetry={pair ? next : start} />
+      </SafeAreaView>
     );
   }
 
-  if (gameState === 'roundComplete') {
-    const played = matchups.length;
+  if (!pair) {
     return (
-      <ThemedView style={gameStyles.container}>
-        <SafeAreaView style={gameStyles.container} edges={['top']}>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={gameStyles.scrollContent}>
-            <View style={gameStyles.completeContainer}>
-              <Ionicons name="trophy" size={80} color={colors.chart2} />
-              <Text style={[gameStyles.largeTitle, { color: colors.foreground }]}>{t('roundComplete')}</Text>
-              <View style={[gameStyles.finalScoreCard, { backgroundColor: themeStyles.primaryBackgroundLight }]}>
-                <Text style={[gameStyles.mediumText, { color: colors.foreground }]}>{t('finalScore')}</Text>
-                {mode === 'party' ? (
-                  <View style={gameStyles.scoreRow}>
-                    {playerNames.map((name, idx) => (
-                      <View key={`${name}-${idx}`} style={gameStyles.scoreColumn}>
-                        <Text
-                          style={[gameStyles.smallText, gameStyles.scoreName, { color: colors.mutedForeground, fontWeight: '700' }]}
-                          numberOfLines={1}
-                        >
-                          {name}
-                        </Text>
-                        <Text style={[gameStyles.largeNumber, { color: colors.secondary }]}>{playerScores[idx]}</Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <>
-                    <View style={gameStyles.scoreRow}>
-                      <View style={gameStyles.scoreColumn}>
-                        <Ionicons name="checkmark-circle" size={40} color={colors.chart3} />
-                        <Text style={[gameStyles.largeNumber, { color: colors.chart3 }]}>{score.correct}</Text>
-                        <Text style={[gameStyles.smallText, { color: colors.mutedForeground }]}>{t('correct')}</Text>
-                      </View>
-                      <View style={gameStyles.scoreColumn}>
-                        <Ionicons name="close-circle" size={40} color={colors.destructive} />
-                        <Text style={[gameStyles.largeNumber, { color: colors.destructive }]}>{score.incorrect}</Text>
-                        <Text style={[gameStyles.smallText, { color: colors.mutedForeground }]}>{t('wrong')}</Text>
-                      </View>
-                    </View>
-                    <Text style={[gameStyles.accuracyText, { color: colors.foreground }]}>
-                      {t('accuracy')}: {played ? Math.round((score.correct / played) * 100) : 0}%
-                    </Text>
-                  </>
-                )}
-              </View>
-              <Pressable
-                style={gameStyles.secondaryButton}
-                onPress={() => router.push('/')}
-                accessibilityRole="button"
-                accessibilityLabel={t('exitToHome')}
-                testID="hot-cold-exit-button"
-              >
-                <Ionicons name="home" size={24} color={colors.primary} />
-                <Text style={[gameStyles.buttonText, { color: colors.primary }]}>{t('exitToHome')}</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </ThemedView>
+      <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top']}>
+        <View style={styles.pad}>{header}</View>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.brand} />
+          <Text style={{ color: colors.mutedForeground }}>{t('loadingCity')}</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  const isHotter = matchup.question === 'hotter';
-  const questionColor = isHotter ? hotColor : coldColor;
-  const answer = getHotColdAnswer(matchup);
-  const lastPickCorrect = picked !== null && isCorrectHotColdPick(matchup, picked);
+  const answer = hotterSide(pair);
+  const revealed = phase === 'revealed' || phase === 'over';
+  const hotter = answer === null ? null : answer === 0 ? pair.left : pair.right;
 
-  const resultMessage = (() => {
-    if (picked === null) return '';
-    if (answer === null) return t('hotColdTie');
-    if (mode === 'party') return lastPickCorrect ? t('hotColdPartyRight') : t('hotColdPartyWrong');
-    return lastPickCorrect ? t('hotColdRight') : t('hotColdWrong');
-  })();
+  const message =
+    phase === 'over'
+      ? t('hotColdOver', { city: hotter?.city.city ?? '' })
+      : answer === null
+        ? t('hotColdTie')
+        : t('hotColdCorrect', { city: hotter?.city.city ?? '' });
 
-  const renderCityOption = (side: HotColdSide) => {
-    const city = matchup.cities[side];
-    const revealed = gameState === 'revealed';
+  const renderCity = (side: Side) => {
+    const entry = side === 0 ? pair.left : pair.right;
+    // In the chain, the left city was already revealed in the previous round.
+    const carriedOver = side === 0 && score > 0;
+    const knownTemp = revealed || carriedOver;
     const isWinner = revealed && (answer === null || answer === side);
     const isPicked = picked === side;
-    const accent = revealed ? (isWinner ? colors.chart3 : colors.mutedForeground) : questionColor;
+    const accent = revealed ? (isWinner ? colors.success : colors.mutedForeground) : colors.chart5;
+    const longestWord = Math.max(...entry.city.city.split(/\s+/).map(word => word.length));
+    const tempText = formatTemp(gameTemperature(entry.weather), unit);
 
     return (
       <Pressable
         key={side}
-        onPress={() => handlePick(side)}
-        disabled={revealed}
+        onPress={() => pick(side)}
+        disabled={phase !== 'picking'}
         testID={`hot-cold-option-${side}`}
         accessibilityRole="button"
-        accessibilityLabel={`${city.city}, ${city.country}`}
-        accessibilityState={{ disabled: revealed, selected: isPicked }}
+        accessibilityLabel={`${entry.city.city}, ${entry.city.country}${knownTemp ? `, ${tempText}` : ''}`}
+        accessibilityState={{ disabled: phase !== 'picking', selected: isPicked }}
         style={({ pressed }) => [
           styles.option,
           {
-            backgroundColor: toRgba(accent, revealed && isWinner ? 0.16 : 0.06),
-            borderColor: isPicked || (revealed && isWinner) ? accent : colors.border,
+            backgroundColor: toRgba(accent, isWinner ? 0.16 : 0.06),
+            borderColor: isPicked || isWinner ? accent : colors.border,
             borderWidth: isPicked ? 3 : 2,
-            opacity: revealed && !isWinner && !isPicked ? 0.7 : 1,
           },
-          pressed && !revealed && styles.optionPressed,
+          pressed && phase === 'picking' && styles.pressed,
         ]}
       >
-        <Ionicons name="location" size={32} color={accent} />
+        <Ionicons name="location" size={30} color={revealed ? accent : colors.brand} />
         <Text
-          style={[styles.optionCity, { color: colors.foreground, fontSize: cityFontSize(city.city) }]}
+          style={[styles.city, { color: colors.foreground, fontSize: longestWord > 11 ? 15 : longestWord > 8 ? 18 : 22 }]}
           numberOfLines={2}
-          adjustsFontSizeToFit
         >
-          {city.city}
+          {entry.city.city}
         </Text>
-        <Text style={[styles.optionCountry, { color: colors.mutedForeground }]} numberOfLines={1}>
-          {city.country}
+        <Text style={[styles.country, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {entry.city.country}
         </Text>
-        {revealed ? (
+        {knownTemp ? (
           <Animated.Text
             style={[
-              styles.optionTemp,
-              {
-                color: isWinner ? colors.chart3 : colors.foreground,
-                opacity: resultAnim,
-                transform: [{ scale: resultAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }],
-              },
+              styles.temp,
+              { color: isWinner ? colors.success : colors.foreground },
+              carriedOver ? null : { opacity: reveal, transform: [{ scale: reveal.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] },
             ]}
+            testID={`hot-cold-temp-${side}`}
           >
-            {formatTemp(city.temperature)}
+            {tempText}
           </Animated.Text>
         ) : (
-          <Text style={[styles.optionTemp, { color: colors.mutedForeground }]}>?</Text>
+          <Text style={[styles.temp, { color: colors.mutedForeground }]}>?</Text>
         )}
-        {revealed && isPicked && (
+        {revealed && isPicked ? (
           <Ionicons
-            name={lastPickCorrect ? 'checkmark-circle' : 'close-circle'}
-            size={28}
-            color={lastPickCorrect ? colors.chart3 : colors.destructive}
+            name={phase === 'over' ? 'close-circle' : 'checkmark-circle'}
+            size={26}
+            color={phase === 'over' ? colors.destructive : colors.success}
             style={styles.pickBadge}
           />
-        )}
+        ) : null}
       </Pressable>
     );
   };
 
   return (
-    <ThemedView style={gameStyles.container}>
-      <SafeAreaView style={gameStyles.container} edges={['top']}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={gameStyles.scrollContent}>
-          <View style={gameStyles.topBar}>
-            <Pressable onPress={() => router.back()} style={gameStyles.backButton} accessibilityRole="button" accessibilityLabel={t('back')}>
-              <Ionicons name="arrow-back" size={28} color={colors.primary} />
-            </Pressable>
-            <Text style={[gameStyles.headerTitle, { color: colors.foreground }]}>{t('hotOrCold')}</Text>
-            <View style={{ width: 44 }} />
-          </View>
-
-          {mode === 'party' && (
-            <View style={styles.turnBanner}>
-              <Text style={[styles.turnText, { color: colors.secondary }]}>
-                {t('currentPlayerTurn', { name: playerNames[currentPlayerIndex] })}
-              </Text>
-            </View>
-          )}
-          <Text style={[styles.progressText, { color: colors.mutedForeground }]}>
-            {roundIndex + 1} / {matchups.length}
+    <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.pad}>
+        {header}
+        <DemoWeatherBadge />
+        <View style={styles.scoreRow} accessibilityLiveRegion="polite">
+          <Text style={[styles.scoreLabel, { color: colors.mutedForeground }]}>{t('score')}</Text>
+          <Text style={[styles.scoreValue, { color: colors.brand }]} testID="hot-cold-score">
+            {score}
           </Text>
+        </View>
 
-          <View style={[styles.questionPill, { backgroundColor: toRgba(questionColor, 0.12) }]}>
-            <Ionicons name={isHotter ? 'flame' : 'snow'} size={26} color={questionColor} />
-            <Text style={[styles.questionText, { color: questionColor }]} testID="hot-cold-question">
-              {isHotter ? t('whichIsHotter') : t('whichIsColder')}
+        <View style={[styles.question, { backgroundColor: toRgba(colors.chart5, 0.14) }]}>
+          <Ionicons name="flame" size={24} color={colors.chart5} />
+          <Text style={[styles.questionText, { color: colors.foreground }]}>{t('whichIsHotter')}</Text>
+        </View>
+
+        <View style={styles.options}>
+          {renderCity(0)}
+          <View style={[styles.vs, { backgroundColor: colors.foreground }]}>
+            <Text style={[styles.vsText, { color: colors.background }]}>{t('versus')}</Text>
+          </View>
+          {renderCity(1)}
+        </View>
+
+        {phase === 'picking' ? <Text style={[styles.hint, { color: colors.mutedForeground }]}>{t('tapToChoose')}</Text> : null}
+        {phase === 'loading' ? <ActivityIndicator color={colors.brand} /> : null}
+
+        {phase === 'revealed' ? (
+          <>
+            <Text style={[styles.message, { color: colors.foreground }]} testID="hot-cold-result" accessibilityLiveRegion="polite">
+              {message}
             </Text>
-          </View>
+            <Pressable style={[styles.primary, { backgroundColor: colors.brand }]} onPress={next} accessibilityRole="button" testID="hot-cold-next-button">
+              <Text style={[styles.primaryText, { color: colors.brandForeground }]}>{t('nextCity2')}</Text>
+              <Ionicons name="arrow-forward" size={20} color={colors.brandForeground} />
+            </Pressable>
+          </>
+        ) : null}
 
-          <View style={styles.optionsRow}>
-            {renderCityOption(0)}
-            <View style={[styles.vsBadge, { backgroundColor: colors.foreground }]}>
-              <Text style={[styles.vsText, { color: colors.background }]}>{t('versus')}</Text>
-            </View>
-            {renderCityOption(1)}
+        {phase === 'over' ? (
+          <View style={styles.over} accessibilityLiveRegion="polite">
+            <Text style={[styles.message, { color: colors.foreground }]} testID="hot-cold-result">
+              {message}
+            </Text>
+            <Scrooby mood={score >= 5 ? 'happy' : 'sad'} size={80} />
+            <Text style={[styles.final, { color: colors.foreground }]} testID="hot-cold-final">
+              {t('yourRun', { score })}
+            </Text>
+            {isNewBest ? <Text style={[styles.newBest, { color: colors.success }]}>🏆 {t('newBest')}</Text> : null}
+            <Pressable style={[styles.primary, { backgroundColor: colors.brand }]} onPress={start} accessibilityRole="button" testID="play-again-button">
+              <Text style={[styles.primaryText, { color: colors.brandForeground }]}>{t('playAgain')}</Text>
+            </Pressable>
+            <Pressable style={styles.secondary} onPress={goHome} accessibilityRole="button" testID="hot-cold-exit-button">
+              <Ionicons name="home" size={20} color={colors.brand} />
+              <Text style={[styles.secondaryText, { color: colors.brand }]}>{t('exitToHome')}</Text>
+            </Pressable>
           </View>
-
-          {gameState === 'playing' ? (
-            <Text style={[styles.hintText, { color: colors.mutedForeground }]}>{t('tapToChoose')}</Text>
-          ) : (
-            <>
-              <Text style={[gameStyles.resultText, { color: colors.foreground }]} testID="hot-cold-result">
-                {resultMessage}
-              </Text>
-              <Pressable
-                style={[gameStyles.primaryButton, { backgroundColor: colors.primary }]}
-                onPress={handleNext}
-                testID="hot-cold-next-button"
-                accessibilityRole="button"
-                accessibilityLabel={isLastRound ? t('viewResults') : t('nextRound')}
-              >
-                <Text style={[gameStyles.buttonText, { color: colors.primaryForeground }]}>
-                  {isLastRound
-                    ? t('viewResults')
-                    : t('nextRoundProgress', { current: roundIndex + 1, total: matchups.length })}
-                </Text>
-                <Ionicons name="arrow-forward" size={20} color={colors.primaryForeground} />
-              </Pressable>
-            </>
-          )}
-
-          <View style={[gameStyles.scoreCard, { backgroundColor: themeStyles.mutedBackground }]}>
-            {mode === 'party' ? (
-              playerNames.map((name, idx) => (
-                <View key={`${name}-${idx}`} style={gameStyles.scoreItem}>
-                  <Text
-                    style={[
-                      gameStyles.smallText,
-                      gameStyles.scoreName,
-                      { color: idx === currentPlayerIndex ? colors.secondary : colors.mutedForeground },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {name}
-                  </Text>
-                  <Text style={[gameStyles.scoreNumber, { color: colors.primary }]}>{playerScores[idx]}</Text>
-                </View>
-              ))
-            ) : (
-              <>
-                <View style={gameStyles.scoreItem}>
-                  <Text style={[gameStyles.smallText, { color: colors.mutedForeground }]}>{t('correct')}</Text>
-                  <Text style={[gameStyles.scoreNumber, { color: colors.primary }]}>{score.correct}</Text>
-                </View>
-                <View style={gameStyles.scoreItem}>
-                  <Text style={[gameStyles.smallText, { color: colors.mutedForeground }]}>{t('wrong')}</Text>
-                  <Text style={gameStyles.scoreNumber}>{score.incorrect}</Text>
-                </View>
-              </>
-            )}
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+        ) : null}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-// Shrink long single words (e.g. "Aguascalientes") so they don't break mid-word in a half-width card.
-function cityFontSize(name: string): number {
-  const longestWord = Math.max(...name.split(/\s+/).map(word => word.length));
-  if (longestWord > 11) return 15;
-  if (longestWord > 8) return 18;
-  return 22;
-}
-
 const styles = StyleSheet.create({
-  turnBanner: { alignItems: 'center', marginBottom: 4 },
-  turnText: { fontSize: 20, fontWeight: '700' },
-  progressText: { textAlign: 'center', fontSize: 15, marginBottom: 16 },
-  questionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
+  screen: { flex: 1 },
+  pad: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  headerScore: { fontSize: 15, fontWeight: '800' },
+  scoreRow: { alignItems: 'center', marginBottom: 12 },
+  scoreLabel: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
+  scoreValue: { fontSize: 40, fontWeight: '900' },
+  question: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 18 },
   questionText: { fontSize: 19, fontWeight: '800', flexShrink: 1, textAlign: 'center' },
-  optionsRow: { flexDirection: 'row', alignItems: 'stretch', gap: 6, marginBottom: 20 },
-  option: {
-    flex: 1,
-    borderRadius: 20,
-    paddingVertical: 22,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 210,
-  },
-  optionPressed: { transform: [{ scale: 0.97 }] },
-  optionCity: { fontSize: 22, fontWeight: '800', textAlign: 'center', marginTop: 8 },
-  optionCountry: { fontSize: 14, marginTop: 4, textAlign: 'center' },
-  optionTemp: { fontSize: 30, fontWeight: '800', marginTop: 14 },
+  options: { flexDirection: 'row', alignItems: 'stretch', gap: 6, marginBottom: 18 },
+  option: { flex: 1, borderRadius: 20, paddingVertical: 20, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', minHeight: 200 },
+  pressed: { transform: [{ scale: 0.97 }] },
+  city: { fontWeight: '800', textAlign: 'center', marginTop: 8 },
+  country: { fontSize: 14, marginTop: 4, textAlign: 'center' },
+  temp: { fontSize: 30, fontWeight: '800', marginTop: 12 },
   pickBadge: { position: 'absolute', top: 10, right: 10 },
-  vsBadge: {
-    alignSelf: 'center',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  vs: { alignSelf: 'center', width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   vsText: { fontSize: 12, fontWeight: '900' },
-  hintText: { textAlign: 'center', fontSize: 15, marginBottom: 20 },
+  hint: { textAlign: 'center', fontSize: 15 },
+  message: { textAlign: 'center', fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  primary: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 16, paddingVertical: 16, minHeight: 52, alignSelf: 'stretch' },
+  primaryText: { fontSize: 18, fontWeight: '700' },
+  secondary: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', paddingVertical: 14, minHeight: 48 },
+  secondaryText: { fontSize: 17, fontWeight: '700' },
+  over: { alignItems: 'center', gap: 10 },
+  final: { fontSize: 26, fontWeight: '900' },
+  newBest: { fontSize: 18, fontWeight: '800' },
 });
