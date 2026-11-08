@@ -1,0 +1,48 @@
+/**
+ * Default Party penalty: a light, party-safe forfeit deck.
+ * Keep entries short, inclusive and doable at a table. No drinking, nothing
+ * physical-risky, nothing that singles out appearance. tests/penalty.test.ts
+ * checks the deck for banned words.
+ */
+export const FORFEITS: readonly string[] = [
+  'Talk like a TV weather presenter for your next three sentences.',
+  'Give a dramatic 15-second forecast for this room.',
+  'Do your best impression of Scrooby the hedgehog.',
+  'Swap seats with the player on your left.',
+  'Speak only in questions until your next turn.',
+  'Hum a TV theme tune until someone guesses it.',
+  'Do 10 star jumps.',
+  'Hold a plank for 20 seconds.',
+  'Name five countries starting with B in 15 seconds.',
+  'Describe the weather outside like a poet.',
+  'Let the group pick a nickname for you until the next round.',
+  'Tell the group about the most unusual place you have ever been.',
+  'Do your best robot dance for 10 seconds.',
+  'Give every player at the table a genuine compliment.',
+  'Act out a heatwave without words until someone guesses it.',
+  'Act out a blizzard without words until someone guesses it.',
+  'Say the alphabet backwards, starting from M.',
+  'Tell a weather joke. If nobody laughs, tell another one.',
+  'Speak in an accent of the group\'s choice until your next turn.',
+  'Narrate the next player\'s turn like a nature documentary.',
+  'Do a slow-motion replay of your guess.',
+  'Name three capital cities in Africa in 10 seconds.',
+  'Keep a straight face for 20 seconds while everyone tries to make you laugh.',
+  'Do your best villain laugh.',
+  'Be a tour guide for this round\'s city for 20 seconds.',
+  'Sing "Happy Birthday" to the player on your right.',
+  'Make up a two-line rap about the weather.',
+  'Do a kind impression of another player.',
+  'Wear something silly on your head until your next turn.',
+  'Hold a superhero pose for 10 seconds.',
+  'Waddle like a penguin once around the table.',
+  'Give a 20-second speech on why your guess was secretly right.',
+  'Draw this round\'s country flag from memory.',
+  'Share a fun fact. No fact? Invent one and let everyone guess if it\'s true.',
+  'Speak only in rhymes until your next turn.',
+  'Do 5 squats while chanting "hotter, colder".',
+  'Spell your name backwards, out loud, as fast as you can.',
+  'Hand the phone on with a royal bow for the rest of the round.',
+  'Let the player on your right choose your next guess\'s first digit.',
+  'Name a song with a weather word in the title in 10 seconds.',
+];
