@@ -15,6 +15,7 @@ function RootLayoutContent() {
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="game" options={{ headerShown: false }} />
+        <Stack.Screen name="hot-or-cold" options={{ headerShown: false }} />
         <Stack.Screen name="rules" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />

@@ -8,6 +8,13 @@ import {
   toggleMinusInGuess,
 } from '../utils/temperature-guess';
 import { parsePartyConfiguration } from '../utils/party-configuration';
+import {
+  buildHotColdMatchups,
+  CityWithTemperature,
+  getHotColdAnswer,
+  getHotColdRoundCount,
+  isCorrectHotColdPick,
+} from '../utils/hot-or-cold';
 
 type TestCase = {
   name: string;
@@ -22,7 +29,49 @@ function timezoneBand(city: { lon: number }): number {
   return Math.round(city.lon / 15);
 }
 
+function tempCity(name: string, temperature: number): CityWithTemperature {
+  return { city: name, country: 'Testland', lat: 0, lon: 0, continent: 'Test', temperature };
+}
+
 const tests: TestCase[] = [
+  {
+    name: 'hot or cold pairs cities into two-option rounds',
+    run: () => {
+      const cities = [1, 2, 3, 4, 5].map(n => tempCity(`C${n}`, n));
+      const matchups = buildHotColdMatchups(cities, () => 0.1);
+      assert.equal(matchups.length, 2);
+      assert.deepEqual(matchups.map(m => m.cities.map(c => c.city)), [['C1', 'C2'], ['C3', 'C4']]);
+      assert.ok(matchups.every(m => m.question === 'hotter'));
+      assert.ok(buildHotColdMatchups(cities, () => 0.9).every(m => m.question === 'colder'));
+    },
+  },
+  {
+    name: 'hot or cold scores hotter, colder and tied rounds',
+    run: () => {
+      const cities: [CityWithTemperature, CityWithTemperature] = [tempCity('Oslo', 2), tempCity('Cairo', 28)];
+      const hotter = { cities, question: 'hotter' as const };
+      const colder = { cities, question: 'colder' as const };
+      assert.equal(getHotColdAnswer(hotter), 1);
+      assert.equal(isCorrectHotColdPick(hotter, 1), true);
+      assert.equal(isCorrectHotColdPick(hotter, 0), false);
+      assert.equal(getHotColdAnswer(colder), 0);
+      assert.equal(isCorrectHotColdPick(colder, 0), true);
+      assert.equal(isCorrectHotColdPick(colder, 1), false);
+
+      const tie = { cities: [tempCity('A', 10), tempCity('B', 10)] as [CityWithTemperature, CityWithTemperature], question: 'hotter' as const };
+      assert.equal(getHotColdAnswer(tie), null);
+      assert.equal(isCorrectHotColdPick(tie, 0), true);
+      assert.equal(isCorrectHotColdPick(tie, 1), true);
+    },
+  },
+  {
+    name: 'hot or cold round count gives every party player equal turns',
+    run: () => {
+      assert.equal(getHotColdRoundCount('classic'), 10);
+      assert.equal(getHotColdRoundCount('party', 3) % 3, 0);
+      assert.equal(getBalancedRandomCities(getHotColdRoundCount('party', 8) * 2, 8).length, 80);
+    },
+  },
   {
     name: 'balanced city selection returns requested count without duplicate cities',
     run: () => {
@@ -109,6 +158,9 @@ const tests: TestCase[] = [
     run: () => {
       for (const option of LANGUAGE_OPTIONS) {
         assert.notEqual(translate(option.code, 'submitGuess'), '');
+        assert.notEqual(translate(option.code, 'whichIsHotter'), 'whichIsHotter');
+        assert.notEqual(translate(option.code, 'whichIsColder'), 'whichIsColder');
+        assert.equal(translate(option.code, 'nextRoundProgress', { current: 3, total: 10 }).includes('3'), true);
         assert.equal(translate(option.code, 'nextCityProgress', { current: 2, total: 10 }).includes('2'), true);
         assert.equal(translate(option.code, 'nextCityProgress', { current: 2, total: 10 }).includes('10'), true);
       }

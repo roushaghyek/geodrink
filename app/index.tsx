@@ -152,6 +152,23 @@ function GameHomeView() {
             <Pressable
               style={({ pressed }) => [
                 styles.modeButton,
+                { backgroundColor: colors.chart5, shadowColor: colors.chart5 },
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={() => router.push('/hot-or-cold?mode=classic' as never)}
+              testID="hot-or-cold-button"
+              accessibilityRole="button"
+              accessibilityLabel={t('hotOrCold')}
+            >
+              <Ionicons name="thermometer" size={20} color={colors.primaryForeground} />
+              <ThemedText style={[styles.modeButtonText, { color: colors.primaryForeground }]}>
+                {t('hotOrCold')}
+              </ThemedText>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.modeButton,
                 { backgroundColor: colors.secondary, shadowColor: colors.secondary },
                 pressed && styles.buttonPressed,
               ]}

@@ -50,6 +50,31 @@ export default function RulesScreen() {
           </View>
         </View>
 
+        {/* Hotter or Colder */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="thermometer" size={24} color={colors.chart5} />
+            <ThemedText style={[styles.sectionTitle, { color: colors.chart5 }]}>Hotter or Colder</ThemedText>
+          </View>
+          <ThemedText style={styles.paragraph}>
+            Two cities, one question. No numbers to type.
+          </ThemedText>
+          <View style={styles.rulesList}>
+            <ThemedText style={styles.rule}>
+              • Each round shows two cities side by side
+            </ThemedText>
+            <ThemedText style={styles.rule}>
+              • You&apos;re asked which one is hotter, or which one is colder, right now
+            </ThemedText>
+            <ThemedText style={styles.rule}>
+              • Tap a city to lock in your pick and reveal both temperatures
+            </ThemedText>
+            <ThemedText style={styles.rule}>
+              • A tie is a free point. With friends, each player gets their own pair of cities per turn
+            </ThemedText>
+          </View>
+        </View>
+
         {/* Playing with friends */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>

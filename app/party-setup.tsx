@@ -14,6 +14,7 @@ export default function PartySetupScreen() {
   const colors = isDark ? Colors.dark : Colors.light;
   const [playerCount, setPlayerCount] = useState<number | null>(null);
   const [names, setNames] = useState<string[]>([]);
+  const [gameType, setGameType] = useState<'guess' | 'hotOrCold'>('guess');
 
   // Step: 1 = select count, 2 = enter names
   const [step, setStep] = useState(1);
@@ -34,7 +35,8 @@ export default function PartySetupScreen() {
 
   const handleStart = () => {
     if (names.some(n => !n.trim())) return;
-    router.push({ pathname: '/game', params: { mode: 'party', playerCount: String(playerCount), names: JSON.stringify(names) } });
+    const pathname = gameType === 'hotOrCold' ? '/hot-or-cold' : '/game';
+    router.push({ pathname: pathname as never, params: { mode: 'party', playerCount: String(playerCount), names: JSON.stringify(names) } });
   };
 
   const handleBack = () => {
@@ -81,6 +83,34 @@ export default function PartySetupScreen() {
         )}
         {step === 2 && (
           <View style={styles.section}>
+            <Text style={[styles.label, { color: colors.foreground }]}>{t('gameType')}</Text>
+            <View style={styles.gameTypeRow}>
+              {([
+                { key: 'guess', label: t('guessTemperature'), icon: 'thermometer-outline' },
+                { key: 'hotOrCold', label: t('hotOrCold'), icon: 'swap-horizontal' },
+              ] as const).map(option => {
+                const selected = gameType === option.key;
+                return (
+                  <Pressable
+                    key={option.key}
+                    style={[
+                      styles.gameTypeButton,
+                      { borderColor: colors.secondary, backgroundColor: selected ? colors.secondary : 'transparent' },
+                    ]}
+                    onPress={() => setGameType(option.key)}
+                    testID={`game-type-${option.key}`}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={option.label}
+                  >
+                    <Ionicons name={option.icon} size={18} color={selected ? colors.secondaryForeground : colors.secondary} />
+                    <Text style={[styles.gameTypeText, { color: selected ? colors.secondaryForeground : colors.secondary }]}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
             <Text style={[styles.label, { color: colors.foreground }]}>{t('enterPlayerNames')}</Text>
             {names.map((name, idx) => (
               <TextInput
@@ -155,4 +185,17 @@ const styles = StyleSheet.create({
   startButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingVertical: 16, marginTop: 18 },
   startText: { fontSize: 20, fontWeight: '700', marginRight: 8 },
   disabledButton: { opacity: 0.5 },
+  gameTypeRow: { flexDirection: 'row', gap: 10, marginBottom: 28 },
+  gameTypeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 2,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  gameTypeText: { fontSize: 15, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
 });
