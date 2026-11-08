@@ -1,16 +1,11 @@
 const byLabel = (label) => `[aria-label="${label}"]`;
 
 function stubWeather() {
-  cy.intercept('GET', '**/data/2.5/weather**', {
-    statusCode: 200,
-    body: {
-      main: {
-        temp: 20,
-        humidity: 50,
-      },
-      weather: [{ description: 'clear sky' }],
-      wind: { speed: 3 },
-    },
+  // The e2e build points EXPO_PUBLIC_WEATHR_API_URL at /e2e-api (see package.json).
+  const observation = { tempC: 20, observedAt: Date.now(), fetchedAt: Date.now() };
+  cy.intercept('GET', '**/e2e-api/weather?**', { statusCode: 200, body: { observation } }).as('weather');
+  cy.intercept('POST', '**/e2e-api/weather/batch', (request) => {
+    request.reply({ statusCode: 200, body: { results: request.body.points.map(() => observation) } });
   }).as('weather');
 }
 

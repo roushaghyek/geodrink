@@ -11,7 +11,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { Colors } from '../constants/theme';
 import { City } from '../data/cities';
 import { loadSounds, playCorrectSound, playWrongSound, unloadSounds } from '../services/audio';
-import { getCurrentTemperature } from '../services/weather';
+import { weatherClient } from '../services/weather';
+import { withWeather } from '../engine/weather/client';
 import { getBalancedRandomCities } from '../utils/city-selection';
 import { celsiusToFahrenheit, fahrenheitToCelsius, getTempUnit, updateGameStats } from '../utils/storage';
 import { evaluateTemperatureGuess, isCompleteTemperatureGuess, sanitizeTemperatureGuess, toggleMinusInGuess } from '../utils/temperature-guess';
@@ -66,13 +67,12 @@ export default function GameScreen() {
 
   const initGame = useCallback(async () => {
     await loadTempUnit();
-    const uniqueCities = getBalancedRandomCities(totalCities, playerCount);
-    const cities: CityData[] = [];
-    for (let i = 0; i < uniqueCities.length; i++) {
-      const city = uniqueCities[i];
-      const temperature = await getCurrentTemperature(city.lat, city.lon);
-      cities.push({ ...city, temperature: Math.round(temperature) });
-    }
+    // Ask for a few spares so cities whose weather fails can be skipped.
+    const uniqueCities = getBalancedRandomCities(totalCities + 4, playerCount);
+    const { ok } = await withWeather(weatherClient, uniqueCities);
+    const cities: CityData[] = ok
+      .slice(0, totalCities)
+      .map(({ city, weather }) => ({ ...city, temperature: Math.round(weather.tempC) }));
     setCityOrder(cities);
   }, [loadTempUnit, playerCount, totalCities]);
 

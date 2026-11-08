@@ -10,7 +10,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { loadSounds, playCorrectSound, playWrongSound, unloadSounds } from '../services/audio';
-import { getCurrentTemperature } from '../services/weather';
+import { weatherClient } from '../services/weather';
+import { withWeather } from '../engine/weather/client';
 import { getBalancedRandomCities } from '../utils/city-selection';
 import {
   buildHotColdMatchups,
@@ -61,12 +62,8 @@ export default function HotOrColdScreen() {
   const initGame = useCallback(async () => {
     setTempUnit(await getTempUnit());
     const cities = getBalancedRandomCities(totalRounds * 2, Math.max(1, playerCount));
-    const withTemps: CityWithTemperature[] = await Promise.all(
-      cities.map(async city => ({
-        ...city,
-        temperature: Math.round(await getCurrentTemperature(city.lat, city.lon)),
-      }))
-    );
+    const { ok } = await withWeather(weatherClient, cities);
+    const withTemps: CityWithTemperature[] = ok.map(({ city, weather }) => ({ ...city, temperature: Math.round(weather.tempC) }));
     setMatchups(buildHotColdMatchups(withTemps));
   }, [playerCount, totalRounds]);
 
