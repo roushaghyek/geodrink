@@ -134,6 +134,23 @@ const en = {
   hotColdCardSubtitle: 'Tap the hotter city. One miss ends the run.',
   partyCardSubtitle: 'Pass the phone. 2 to 12 players.',
   more: 'More',
+  daily: 'Weathr Daily',
+  dailyCardSubtitle: 'Same city for everyone. One guess a day.',
+  dailyNumber: 'Daily #{number}',
+  dailyPrompt: "Everyone gets this city today. You get one guess.",
+  dailyNew: 'New',
+  shareResult: 'Share result',
+  shareMore: 'More sharing options',
+  copied: 'Copied! Paste it anywhere.',
+  shared: 'Shared!',
+  shareFailed: "Couldn't share. Try again.",
+  nextDailyIn: 'Next city in {time}',
+  currentStreak: 'Streak',
+  bestStreak: 'Best',
+  played: 'Played',
+  dailyDone: "You've played today's city",
+  checkingLiveTemp: 'Checking the live temperature…',
+  liveTempNote: 'Scores use the live temperature when you guess, so they can differ slightly from a friend who played hours earlier.',
 };
 
 export type TranslationKey = keyof typeof en;

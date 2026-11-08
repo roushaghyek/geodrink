@@ -15,6 +15,8 @@ import { ModeCard } from "../components/game/ModeCard";
 import { Scrooby } from "../components/game/Scrooby";
 import { DemoWeatherBadge } from "../components/game/WeatherNotice";
 import { usePalette } from "../hooks/use-palette";
+import { dailyIndex, dailyStreak, findDailyResult } from "../engine/daily";
+import { loadDailyHistory } from "../services/daily-store";
 const styles = S.home;
 
 export default function HomeScreen() {
@@ -81,12 +83,19 @@ function GameHomeView() {
   const colors = usePalette();
   const { t } = useLanguage();
   const [funFact, setFunFact] = useState<string>('');
+  const [dailyBadge, setDailyBadge] = useState<string>(t('dailyNew'));
 
   useFocusEffect(
     useCallback(() => {
       // A new fun fact each time the screen comes into focus
       setFunFact(getRandomFunFact());
-    }, [])
+      loadDailyHistory().then(history => {
+        const today = dailyIndex();
+        const streak = dailyStreak(history, today).current;
+        const playedToday = Boolean(findDailyResult(history, today));
+        setDailyBadge(playedToday ? `✓ 🔥 ${streak}` : streak > 0 ? `🔥 ${streak}` : t('dailyNew'));
+      });
+    }, [t])
   );
 
   return (
@@ -114,6 +123,15 @@ function GameHomeView() {
           </View>
 
           <View style={home.modes}>
+            <ModeCard
+              featured
+              title={t('daily')}
+              subtitle={t('dailyCardSubtitle')}
+              icon="calendar"
+              badge={dailyBadge}
+              onPress={() => router.push('/daily' as never)}
+              testID="daily-button"
+            />
             <ModeCard
               title={t('hotOrCold')}
               subtitle={t('hotColdCardSubtitle')}

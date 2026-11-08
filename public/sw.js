@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weathr-v1';
+const CACHE_NAME = 'weathr-v2';
 const OFFLINE_URL = '/';
 
 self.addEventListener('install', (event) => {
@@ -23,6 +23,13 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Never cache live data: weather must always come from the network, and
+  // cross-origin APIs (the Weathr Worker) manage their own caching.
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin || url.pathname.includes('/weather')) {
     return;
   }
 

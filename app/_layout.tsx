@@ -17,6 +17,7 @@ function RootLayoutContent() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="game" options={{ headerShown: false }} />
         <Stack.Screen name="practice" options={{ headerShown: false }} />
+        <Stack.Screen name="daily" options={{ headerShown: false }} />
         <Stack.Screen name="hot-or-cold" options={{ headerShown: false }} />
         <Stack.Screen name="rules" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />

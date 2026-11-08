@@ -14,4 +14,10 @@ module.exports = defineConfig([
       globals: { WebSocketPair: 'readonly', caches: 'readonly' },
     },
   },
+  {
+    files: ['cypress/**'],
+    languageOptions: {
+      globals: { cy: 'readonly', Cypress: 'readonly', describe: 'readonly', it: 'readonly', beforeEach: 'readonly', expect: 'readonly' },
+    },
+  },
 ]);
