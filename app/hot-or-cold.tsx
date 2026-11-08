@@ -25,7 +25,7 @@ import {
 import { parsePartyConfiguration } from '../utils/party-configuration';
 import { celsiusToFahrenheit, getTempUnit } from '../utils/storage';
 import { getThemeStyles, toRgba } from '../utils/theme-colors';
-import { gameStyles } from './game.styles';
+import { gameStyles } from '../components/game/styles';
 
 export default function HotOrColdScreen() {
   const router = useRouter();

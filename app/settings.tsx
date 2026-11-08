@@ -11,7 +11,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { Colors } from '../constants/theme';
 import { S } from '../styles';
 import { LANGUAGE_OPTIONS } from '../utils/i18n';
-import { getSoundEffectsEnabled, getTempUnit, setSoundEffectsEnabled, setTempUnit } from '../utils/storage';
+import { useTempUnit } from '../contexts/TempUnitContext';
+import { getSoundEffectsEnabled, setSoundEffectsEnabled } from '../utils/storage';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -21,24 +22,19 @@ export default function SettingsScreen() {
   const colors = isDark ? Colors.dark : Colors.light;
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [hapticEnabled, setHapticEnabled] = useState(true);
-  const [celsiusEnabled, setCelsiusEnabled] = useState(true);
+  const { unit, setUnit } = useTempUnit();
+  const celsiusEnabled = unit === 'C';
 
   useEffect(() => {
     loadSettings();
   }, []);
 
   const loadSettings = async () => {
-    const [unit, soundEffectsEnabled] = await Promise.all([
-      getTempUnit(),
-      getSoundEffectsEnabled(),
-    ]);
-    setCelsiusEnabled(unit === 'C');
-    setSoundEnabled(soundEffectsEnabled);
+    setSoundEnabled(await getSoundEffectsEnabled());
   };
 
   const toggleTempUnit = async (value: boolean) => {
-    setCelsiusEnabled(value);
-    await setTempUnit(value ? 'C' : 'F');
+    await setUnit(value ? 'C' : 'F');
   };
 
   const toggleSoundEffects = async (value: boolean) => {

@@ -18,7 +18,7 @@ import { celsiusToFahrenheit, fahrenheitToCelsius, getTempUnit, updateGameStats 
 import { evaluateTemperatureGuess, isCompleteTemperatureGuess, sanitizeTemperatureGuess, toggleMinusInGuess } from '../utils/temperature-guess';
 import { parsePartyConfiguration } from '../utils/party-configuration';
 import { getThemeStyles, toRgba } from '../utils/theme-colors';
-import { gameStyles } from './game.styles';
+import { gameStyles } from '../components/game/styles';
 
 interface CityData extends City {
   temperature: number;

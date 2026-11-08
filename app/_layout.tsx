@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { SessionProvider } from '../contexts/SessionContext';
 import { LanguageProvider } from '../contexts/LanguageContext';
+import { TempUnitProvider } from '../contexts/TempUnitContext';
 
 function RootLayoutContent() {
   const { isDark } = useTheme();
@@ -15,6 +16,7 @@ function RootLayoutContent() {
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="game" options={{ headerShown: false }} />
+        <Stack.Screen name="practice" options={{ headerShown: false }} />
         <Stack.Screen name="hot-or-cold" options={{ headerShown: false }} />
         <Stack.Screen name="rules" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
@@ -31,9 +33,11 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <SessionProvider>
-          <RootLayoutContent />
-        </SessionProvider>
+        <TempUnitProvider>
+          <SessionProvider>
+            <RootLayoutContent />
+          </SessionProvider>
+        </TempUnitProvider>
       </LanguageProvider>
     </ThemeProvider>
   );

@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ComponentProps, useCallback, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemedText } from "../components/themed-text";
 import { ThemedView } from "../components/themed-view";
@@ -11,6 +11,10 @@ import { Colors } from "../constants/theme";
 import { useTheme } from "../contexts/ThemeContext";
 import { useSession } from "../contexts/SessionContext";
 import { useLanguage } from "../contexts/LanguageContext";
+import { ModeCard } from "../components/game/ModeCard";
+import { Scrooby } from "../components/game/Scrooby";
+import { DemoWeatherBadge } from "../components/game/WeatherNotice";
+import { usePalette } from "../hooks/use-palette";
 const styles = S.home;
 
 export default function HomeScreen() {
@@ -44,7 +48,8 @@ function LandingView({ onStart }: { onStart: () => Promise<void> }) {
     <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.landingContainer}>
-          <ThemedText style={[styles.landingTitle, { color: colors.foreground }]}>
+          <Scrooby mood="hello" size={110} />
+          <ThemedText style={[styles.landingTitle, { color: colors.brand }]}>
             Weathr
           </ThemedText>
           <ThemedText style={[styles.landingSubtitle, { color: colors.mutedForeground }]}>
@@ -53,7 +58,7 @@ function LandingView({ onStart }: { onStart: () => Promise<void> }) {
           <Pressable
             style={({ pressed }) => [
               styles.modeButton,
-              { backgroundColor: colors.primary, shadowColor: colors.primary, width: '100%' },
+              { backgroundColor: colors.brand, shadowColor: colors.brand, width: '100%' },
               pressed && styles.buttonPressed,
             ]}
             onPress={onStart}
@@ -61,7 +66,7 @@ function LandingView({ onStart }: { onStart: () => Promise<void> }) {
             accessibilityRole="button"
             accessibilityLabel={t('enterApp')}
           >
-            <ThemedText style={[styles.modeButtonText, { color: colors.primaryForeground }]}>
+            <ThemedText style={[styles.modeButtonText, { color: colors.brandForeground }]}>
               {t('enterApp')}
             </ThemedText>
           </Pressable>
@@ -73,14 +78,13 @@ function LandingView({ onStart }: { onStart: () => Promise<void> }) {
 
 function GameHomeView() {
   const router = useRouter();
-  const { isDark } = useTheme();
+  const colors = usePalette();
   const { t } = useLanguage();
-  const colors = isDark ? Colors.dark : Colors.light;
   const [funFact, setFunFact] = useState<string>('');
 
   useFocusEffect(
     useCallback(() => {
-      // Load a new fun fact each time the screen comes into focus
+      // A new fun fact each time the screen comes into focus
       setFunFact(getRandomFunFact());
     }, [])
   );
@@ -88,161 +92,94 @@ function GameHomeView() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Header */}
-        <View style={styles.headerBar}>
-          <ThemedText style={styles.versionText}>v1.0</ThemedText>
-          <Pressable
-            style={({ pressed }) => [styles.settingsButton, pressed && styles.buttonPressed]}
-            onPress={() => router.push('/settings')}
-            accessibilityRole="button"
-            accessibilityLabel={t('settings')}
-          >
-            <Ionicons name="settings-outline" size={24} color={colors.foreground} />
-          </Pressable>
-        </View>
-
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} bounces={false}>
-          {/* Title */}
-          <View style={styles.titleContainer}>
-            <ThemedText style={[styles.title, { color: colors.foreground }]}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={home.scroll}>
+          <View style={home.header}>
+            <Text style={[home.wordmark, { color: colors.brand }]} accessibilityRole="header">
               Weathr
-            </ThemedText>
-          </View>
-
-          {/* Weather/Location Widget */}
-          <View style={[styles.weatherCard, { backgroundColor: colors.card, borderColor: colors.accent }]}>
-            <View style={styles.weatherLeft}>
-              <View style={[styles.weatherIcon, { backgroundColor: `${colors.accent}33` }]}>
-                <Ionicons name="location-outline" size={24} color={colors.accent} />
-              </View>
-              <View>
-                <ThemedText style={[styles.weatherSmallText, { color: colors.mutedForeground }]}>
-                  {t('currentLocation')}
-                </ThemedText>
-                <ThemedText style={[styles.weatherLocationText, { color: colors.foreground }]}>
-                  {t('autoDetected')}
-                </ThemedText>
-              </View>
-            </View>
-            <View style={styles.weatherRight}>
-              <Ionicons name="thermometer-outline" size={20} color={colors.accent} />
-              <ThemedText style={[styles.weatherTemp, { color: colors.foreground }]}>--°</ThemedText>
-            </View>
-          </View>
-
-
-          {/* Mode Buttons */}
-          <View style={styles.modesContainer}>
+            </Text>
             <Pressable
-              style={({ pressed }) => [
-                styles.modeButton,
-                { backgroundColor: colors.primary, shadowColor: colors.primary },
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={() => router.push('/game?mode=classic')}
-              testID="classic-mode-button"
-              accessibilityRole="button"
-              accessibilityLabel={t('classicMode')}
-            >
-              <ThemedText style={[styles.modeButtonText, { color: colors.primaryForeground }]}>
-                {t('classicMode')}
-              </ThemedText>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.modeButton,
-                { backgroundColor: colors.chart5, shadowColor: colors.chart5 },
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={() => router.push('/hot-or-cold?mode=classic' as never)}
-              testID="hot-or-cold-button"
-              accessibilityRole="button"
-              accessibilityLabel={t('hotOrCold')}
-            >
-              <Ionicons name="thermometer" size={20} color={colors.primaryForeground} />
-              <ThemedText style={[styles.modeButtonText, { color: colors.primaryForeground }]}>
-                {t('hotOrCold')}
-              </ThemedText>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.modeButton,
-                { backgroundColor: colors.secondary, shadowColor: colors.secondary },
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={() => router.push('/party-setup')}
-              testID="party-mode-button"
-              accessibilityRole="button"
-              accessibilityLabel={t('partyMode')}
-            >
-              <Ionicons name="people" size={20} color={colors.secondaryForeground} />
-              <ThemedText style={[styles.modeButtonText, { color: colors.secondaryForeground }]}>
-                {t('partyMode')}
-              </ThemedText>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.modeButton,
-                { backgroundColor: colors.accent, shadowColor: colors.accent },
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={() => router.push('/online-party' as never)}
-              testID="online-party-button"
-              accessibilityRole="button"
-              accessibilityLabel={t('onlineParty')}
-            >
-              <Ionicons name="wifi" size={20} color={colors.accentForeground} />
-              <ThemedText style={[styles.modeButtonText, { color: colors.accentForeground }]}>
-                {t('onlineParty')}
-              </ThemedText>
-            </Pressable>
-          </View>
-
-          {/* Utility Buttons Grid */}
-          <View style={styles.utilityButtonsGrid}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.utilityButton,
-                { backgroundColor: colors.card, borderColor: colors.border },
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={() => router.push('/rules')}
-              accessibilityRole="button"
-              accessibilityLabel={t('rulesHelp')}
-            >
-              <Ionicons name="book-outline" size={20} color={colors.accent} />
-              <ThemedText style={[styles.utilityButtonText, { color: colors.foreground }]}>
-                {t('rulesHelp')}
-              </ThemedText>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.utilityButton,
-                { backgroundColor: colors.card, borderColor: colors.border },
-                pressed && styles.buttonPressed,
-              ]}
+              style={home.iconButton}
               onPress={() => router.push('/settings')}
               accessibilityRole="button"
               accessibilityLabel={t('settings')}
             >
-              <Ionicons name="settings-outline" size={20} color={colors.accent} />
-              <ThemedText style={[styles.utilityButtonText, { color: colors.foreground }]}>
-                {t('settings')}
-              </ThemedText>
+              <Ionicons name="settings-outline" size={24} color={colors.foreground} />
             </Pressable>
           </View>
 
-          {/* Fun Fact Card */}
-          <View style={[styles.funFactContainer, { backgroundColor: colors.card, borderLeftColor: colors.primary }]}>
-            <ThemedText style={[styles.funFactLabel, { color: colors.primary }]}>{t('funFact')}</ThemedText>
-            <ThemedText style={[styles.funFact, { color: colors.cardForeground }]}>{funFact}</ThemedText>
+          <View style={home.hero}>
+            <Scrooby mood="hello" size={88} />
+            <Text style={[home.greeting, { color: colors.foreground }]}>{t('homeGreeting')}</Text>
+            <DemoWeatherBadge />
           </View>
+
+          <View style={home.modes}>
+            <ModeCard
+              title={t('hotOrCold')}
+              subtitle={t('hotColdCardSubtitle')}
+              icon="swap-horizontal"
+              onPress={() => router.push('/hot-or-cold' as never)}
+              testID="hot-or-cold-button"
+            />
+            <ModeCard
+              title={t('partyMode')}
+              subtitle={t('partyCardSubtitle')}
+              icon="people"
+              onPress={() => router.push('/party-setup')}
+              testID="party-mode-button"
+            />
+          </View>
+
+          <Text style={[home.sectionLabel, { color: colors.mutedForeground }]}>{t('more')}</Text>
+          <View style={home.links}>
+            <HomeLink icon="school-outline" label={t('practice')} onPress={() => router.push('/practice' as never)} testID="practice-button" />
+            <HomeLink icon="book-outline" label={t('rulesHelp')} onPress={() => router.push('/rules')} />
+            <HomeLink icon="wifi" label={t('onlineParty')} onPress={() => router.push('/online-party' as never)} testID="online-party-button" />
+          </View>
+
+          {funFact ? (
+            <View style={[home.funFact, { backgroundColor: colors.card, borderLeftColor: colors.brand }]}>
+              <Text style={[home.funFactLabel, { color: colors.brand }]}>{t('funFact')}</Text>
+              <Text style={[home.funFactText, { color: colors.cardForeground }]}>{funFact}</Text>
+            </View>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
 }
+
+function HomeLink({ icon, label, onPress, testID }: { icon: ComponentProps<typeof Ionicons>['name']; label: string; onPress: () => void; testID?: string }) {
+  const colors = usePalette();
+  return (
+    <Pressable
+      style={({ pressed }) => [home.link, { backgroundColor: colors.card, borderColor: colors.border }, pressed && { opacity: 0.8 }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      testID={testID}
+    >
+      <Ionicons name={icon} size={20} color={colors.brand} />
+      <Text style={[home.linkText, { color: colors.foreground }]} numberOfLines={2}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+const home = StyleSheet.create({
+  scroll: { paddingHorizontal: 16, paddingBottom: 32, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
+  wordmark: { fontSize: 30, fontWeight: '900', letterSpacing: -0.5 },
+  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  hero: { alignItems: 'center', gap: 10, marginTop: 8, marginBottom: 20 },
+  greeting: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  modes: { gap: 12 },
+  sectionLabel: { fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginTop: 24, marginBottom: 10 },
+  links: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  link: { flexGrow: 1, flexBasis: '28%', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 6, minHeight: 72 },
+  linkText: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  funFact: { marginTop: 24, borderRadius: 14, borderLeftWidth: 4, padding: 16 },
+  funFactLabel: { fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
+  funFactText: { fontSize: 15, marginTop: 6, lineHeight: 21 },
+});

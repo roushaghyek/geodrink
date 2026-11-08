@@ -12,6 +12,9 @@ import { Platform } from 'react-native';
  */
 const lightColors = {
   background: '#FAFFE8',           // oklch(0.98 0.01 120)
+  brand: '#1F4D7A',                // Weathr deep blue (app icon / PWA theme colour)
+  brandForeground: '#FFFFFF',
+  success: '#2E8B57',
   foreground: '#2D2D4D',           // oklch(0.18 0.02 270)
   card: '#FFFFFF',                 // oklch(1 0 0)
   cardForeground: '#2D2D4D',       // oklch(0.18 0.02 270)
@@ -50,6 +53,9 @@ const lightColors = {
  */
 const darkColors = {
   background: '#252527',           // oklch(0.145 0 0)
+  brand: '#2C6AA6',                // deep blue, lifted for contrast on dark backgrounds
+  brandForeground: '#FFFFFF',
+  success: '#6CCB8F',
   foreground: '#FCFCFD',           // oklch(0.985 0 0)
   card: '#363639',                 // oklch(0.2 0 0)
   cardForeground: '#FCFCFD',       // oklch(0.985 0 0)
