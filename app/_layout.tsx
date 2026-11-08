@@ -15,7 +15,6 @@ function RootLayoutContent() {
     <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme }>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="game" options={{ headerShown: false }} />
         <Stack.Screen name="practice" options={{ headerShown: false }} />
         <Stack.Screen name="daily" options={{ headerShown: false }} />
         <Stack.Screen name="hot-or-cold" options={{ headerShown: false }} />
@@ -23,6 +22,7 @@ function RootLayoutContent() {
         <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="party-setup" options={{ headerShown: false }} />
+        <Stack.Screen name="party" options={{ headerShown: false }} />
         <Stack.Screen name="online-party" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style={isDark ? 'light' : 'dark'} />

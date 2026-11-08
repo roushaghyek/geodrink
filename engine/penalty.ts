@@ -35,13 +35,12 @@ export function penaltyPoints(offCelsius: number, settings: Pick<PenaltySettings
   return Math.min(cap, Math.max(1, Math.ceil(offCelsius / per)));
 }
 
-export interface RoundGuess {
+export interface PlayerError {
   playerIndex: number;
-  guessC: number;
+  offC: number;
 }
 
-export interface RankedGuess extends RoundGuess {
-  offC: number;
+export interface RankedEntry extends PlayerError {
   /** 1 = closest. Ties share a rank. */
   rank: number;
   isFurthest: boolean;
@@ -52,19 +51,31 @@ export interface RankedGuess extends RoundGuess {
  * Rank everyone by degrees off (closest first). Everyone tied for furthest
  * takes the penalty, unless the whole table tied (nobody lost the round).
  */
-export function rankRound(guesses: RoundGuess[], actualC: number, settings: Pick<PenaltySettings, 'degreesPerPoint' | 'capPerRound'>): RankedGuess[] {
-  const withOff = guesses.map(guess => ({
-    ...guess,
-    offC: Math.round(Math.abs(guess.guessC - actualC) * 100) / 100,
-  }));
-  const sorted = [...withOff].sort((a, b) => a.offC - b.offC || a.playerIndex - b.playerIndex);
+export function rankByError(entries: PlayerError[], settings: Pick<PenaltySettings, 'degreesPerPoint' | 'capPerRound'>): RankedEntry[] {
+  const sorted = [...entries].sort((a, b) => a.offC - b.offC || a.playerIndex - b.playerIndex);
   const worst = sorted.length ? sorted[sorted.length - 1].offC : 0;
   const best = sorted.length ? sorted[0].offC : 0;
   const everyoneTied = sorted.length > 1 && worst === best;
 
-  return sorted.map(guess => {
-    const rank = sorted.findIndex(other => other.offC === guess.offC) + 1;
-    const isFurthest = !everyoneTied && guess.offC === worst && sorted.length > 1;
-    return { ...guess, rank, isFurthest, penalty: isFurthest ? penaltyPoints(guess.offC, settings) : 0 };
+  return sorted.map(entry => {
+    const rank = sorted.findIndex(other => other.offC === entry.offC) + 1;
+    const isFurthest = !everyoneTied && sorted.length > 1 && entry.offC === worst;
+    return { ...entry, rank, isFurthest, penalty: isFurthest ? penaltyPoints(entry.offC, settings) : 0 };
   });
+}
+
+export interface RoundGuess {
+  playerIndex: number;
+  guessC: number;
+}
+
+export type RankedGuess = RankedEntry & RoundGuess;
+
+/** Convenience: rank raw °C guesses against the actual temperature. */
+export function rankRound(guesses: RoundGuess[], actualC: number, settings: Pick<PenaltySettings, 'degreesPerPoint' | 'capPerRound'>): RankedGuess[] {
+  const byPlayer = new Map(guesses.map(guess => [guess.playerIndex, guess]));
+  return rankByError(
+    guesses.map(guess => ({ playerIndex: guess.playerIndex, offC: Math.round(Math.abs(guess.guessC - actualC) * 100) / 100 })),
+    settings
+  ).map(entry => ({ ...entry, guessC: byPlayer.get(entry.playerIndex)!.guessC }));
 }

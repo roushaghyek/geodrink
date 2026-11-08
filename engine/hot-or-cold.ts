@@ -39,10 +39,6 @@ export function nextPair<C extends City>(pair: HotColdPair<C>, incoming: CityWea
 export const PREFETCH_TARGET = 8;
 export const PREFETCH_LOW_WATER = 4;
 
-export function needsRefill(queueLength: number): boolean {
-  return queueLength < PREFETCH_LOW_WATER;
-}
-
 export function updateHighScore(previous: number, run: number): number {
   return Math.max(previous, run);
 }

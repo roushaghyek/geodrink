@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { cityKey, pickCities } from '../engine/cities';
-import { needsRefill, PREFETCH_TARGET } from '../engine/hot-or-cold';
+import { PREFETCH_LOW_WATER, PREFETCH_TARGET } from '../engine/hot-or-cold';
 import { CityWeather, DEFAULT_WEATHER_TTL_MS, withWeather } from '../engine/weather/client';
 import { weatherClient } from '../services/weather';
 
@@ -9,7 +9,7 @@ import { weatherClient } from '../services/weather';
  * never wait between rounds. Refills in one batched request when it drops
  * below the low-water mark; cities whose weather fails are skipped.
  */
-export function useCityQueue(target = PREFETCH_TARGET) {
+export function useCityQueue(target = PREFETCH_TARGET, lowWater = PREFETCH_LOW_WATER) {
   const queue = useRef<CityWeather[]>([]);
   const used = useRef(new Set<string>());
   const filling = useRef<Promise<void> | null>(null);
@@ -42,7 +42,7 @@ export function useCityQueue(target = PREFETCH_TARGET) {
       if (queue.current.length === 0) await fill();
       const next = queue.current.shift();
       if (!next) return null;
-      if (needsRefill(queue.current.length)) fill();
+      if (queue.current.length < lowWater) fill();
 
       // A reading that sat in the queue past the cache TTL is re-checked.
       if (Date.now() - next.weather.fetchedAt <= DEFAULT_WEATHER_TTL_MS) return next;
@@ -50,7 +50,7 @@ export function useCityQueue(target = PREFETCH_TARGET) {
       if (fresh) return { city: next.city, weather: fresh };
     }
     return null;
-  }, [fill, target]);
+  }, [fill, target, lowWater]);
 
   useEffect(() => {
     fill();

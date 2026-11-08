@@ -86,12 +86,14 @@ function GameHomeView() {
   const [funFact, setFunFact] = useState<string>('');
   const [dailyBadge, setDailyBadge] = useState<string>(t('dailyNew'));
   const [hotColdBest, setHotColdBest] = useState(0);
+  const [onlinePartyEnabled, setOnlinePartyEnabled] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       // A new fun fact each time the screen comes into focus
       setFunFact(getRandomFunFact());
       getJSON<number>(STORAGE_KEYS.hotColdBest, 0).then(setHotColdBest);
+      getJSON<boolean>(STORAGE_KEYS.onlinePartyEnabled, false).then(setOnlinePartyEnabled);
       loadDailyHistory().then(history => {
         const today = dailyIndex();
         const streak = dailyStreak(history, today).current;
@@ -156,7 +158,9 @@ function GameHomeView() {
           <View style={home.links}>
             <HomeLink icon="school-outline" label={t('practice')} onPress={() => router.push('/practice' as never)} testID="practice-button" />
             <HomeLink icon="book-outline" label={t('rulesHelp')} onPress={() => router.push('/rules')} />
-            <HomeLink icon="wifi" label={t('onlineParty')} onPress={() => router.push('/online-party' as never)} testID="online-party-button" />
+            {onlinePartyEnabled ? (
+              <HomeLink icon="wifi" label={t('onlineParty')} onPress={() => router.push('/online-party' as never)} testID="online-party-button" />
+            ) : null}
           </View>
 
           {funFact ? (

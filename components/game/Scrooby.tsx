@@ -20,12 +20,12 @@ const FACES: Record<ScroobyFace, { badge: string; label: string }> = {
   sad: { badge: '😢', label: 'Scrooby the hedgehog, sad' },
 };
 
-export function Scrooby({ mood, size = 96, caption }: { mood: ScroobyFace; size?: number; caption?: string }) {
+export function Scrooby({ mood, size = 96, caption, onBrand }: { mood: ScroobyFace; size?: number; caption?: string; onBrand?: boolean }) {
   const colors = usePalette();
   const pop = useRef(new Animated.Value(0)).current;
   const wiggle = useRef(new Animated.Value(0)).current;
 
-  const tint = {
+  const moodTint = {
     hello: colors.brand,
     thinking: colors.brand,
     happy: colors.success,
@@ -33,6 +33,8 @@ export function Scrooby({ mood, size = 96, caption }: { mood: ScroobyFace; size?
     shivering: colors.primary,
     sad: colors.mutedForeground,
   }[mood];
+  // On the deep-blue brand background, a light ring keeps Scrooby visible.
+  const tint = onBrand ? colors.brandForeground : moodTint;
 
   useEffect(() => {
     pop.setValue(0);

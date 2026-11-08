@@ -12,7 +12,7 @@ import { Colors } from '../constants/theme';
 import { S } from '../styles';
 import { LANGUAGE_OPTIONS } from '../utils/i18n';
 import { useTempUnit } from '../contexts/TempUnitContext';
-import { getSoundEffectsEnabled, setSoundEffectsEnabled } from '../utils/storage';
+import { getJSON, getSoundEffectsEnabled, setJSON, setSoundEffectsEnabled, STORAGE_KEYS } from '../utils/storage';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -21,6 +21,7 @@ export default function SettingsScreen() {
   const { language, setLanguage, t } = useLanguage();
   const colors = isDark ? Colors.dark : Colors.light;
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [onlinePartyEnabled, setOnlinePartyEnabled] = useState(false);
   const [hapticEnabled, setHapticEnabled] = useState(true);
   const { unit, setUnit } = useTempUnit();
   const celsiusEnabled = unit === 'C';
@@ -31,10 +32,16 @@ export default function SettingsScreen() {
 
   const loadSettings = async () => {
     setSoundEnabled(await getSoundEffectsEnabled());
+    setOnlinePartyEnabled(await getJSON<boolean>(STORAGE_KEYS.onlinePartyEnabled, false));
   };
 
   const toggleTempUnit = async (value: boolean) => {
     await setUnit(value ? 'C' : 'F');
+  };
+
+  const toggleOnlineParty = async (value: boolean) => {
+    setOnlinePartyEnabled(value);
+    await setJSON(STORAGE_KEYS.onlinePartyEnabled, value);
   };
 
   const toggleSoundEffects = async (value: boolean) => {
@@ -170,6 +177,26 @@ export default function SettingsScreen() {
             <Switch
               value={hapticEnabled}
               onValueChange={setHapticEnabled}
+              trackColor={{ false: '#767577', true: colors.primary }}
+            />
+          </View>
+        </View>
+
+        {/* Labs */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>{t('labs')}</ThemedText>
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Ionicons name="wifi" size={24} color={colors.primary} />
+              <View style={styles.settingText}>
+                <ThemedText style={styles.settingLabel}>{t('onlineParty')}</ThemedText>
+                <ThemedText style={styles.settingDescription}>{t('onlinePartyToggleDescription')}</ThemedText>
+              </View>
+            </View>
+            <Switch
+              value={onlinePartyEnabled}
+              onValueChange={toggleOnlineParty}
+              accessibilityLabel={t('onlineParty')}
               trackColor={{ false: '#767577', true: colors.primary }}
             />
           </View>
