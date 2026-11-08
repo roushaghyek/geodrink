@@ -183,10 +183,35 @@ export async function setSoundEffectsEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(SOUND_EFFECTS_KEY, enabled ? 'true' : 'false');
 }
 
-export function celsiusToFahrenheit(celsius: number): number {
-  return (celsius * 9/5) + 32;
+export { celsiusToFahrenheit, fahrenheitToCelsius } from '../engine/scoring';
+
+/** Typed JSON persistence for mode state (daily history, high scores, party settings). */
+export async function getJSON<T>(key: string, fallback: T): Promise<T> {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (raw === null) return fallback;
+    const parsed = JSON.parse(raw);
+    const isPlainObject = (value: unknown) => typeof value === 'object' && value !== null && !Array.isArray(value);
+    // Merge objects so settings saved by older versions pick up new defaults.
+    if (isPlainObject(fallback) && isPlainObject(parsed)) return { ...fallback, ...parsed };
+    return typeof parsed === typeof fallback && Array.isArray(parsed) === Array.isArray(fallback) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
-export function fahrenheitToCelsius(fahrenheit: number): number {
-  return (fahrenheit - 32) * 5/9;
+export async function setJSON<T>(key: string, value: T): Promise<void> {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Error saving ${key}:`, error);
+  }
 }
+
+export const STORAGE_KEYS = {
+  dailyHistory: '@weathr_daily_history',
+  hotColdBest: '@weathr_hot_cold_best',
+  partySettings: '@weathr_party_settings',
+  partyPlayers: '@weathr_party_players',
+  onlinePartyEnabled: '@weathr_online_party_enabled',
+} as const;

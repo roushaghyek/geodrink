@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { ComponentProps } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '../components/themed-text';
@@ -25,57 +26,44 @@ export default function RulesScreen() {
         </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Classic Mode */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="person" size={24} color={colors.primary} />
-            <ThemedText style={styles.sectionTitle}>Classic Mode</ThemedText>
-          </View>
-          <ThemedText style={styles.paragraph}>
-            Test your geography and weather knowledge at your own pace.
-          </ThemedText>
-          <View style={styles.rulesList}>
-            <ThemedText style={styles.rule}>
-              • The app shows you a random city from anywhere in the world
-            </ThemedText>
-            <ThemedText style={styles.rule}>
-              • Guess the current temperature in Celsius
-            </ThemedText>
-            <ThemedText style={styles.rule}>
-              • Get within 2°C to score a point
-            </ThemedText>
-            <ThemedText style={styles.rule}>
-              • Track your accuracy over time
-            </ThemedText>
-          </View>
-        </View>
+        <RuleSection icon="speedometer" color={colors.brand} title="How scoring works">
+          {[
+            'Every guess is scored by how many degrees you were off the live temperature. Lower is better.',
+            '🟩 within 1°C · 🟨 within 3°C · 🟧 within 6°C · 🟥 more than 6°C off',
+            'Celsius by default. Switch to °F in Settings; scores are always compared fairly in °C.',
+          ]}
+        </RuleSection>
 
-        {/* Playing with friends */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="people" size={24} color={colors.secondary} />
-            <ThemedText style={[styles.sectionTitle, { color: colors.secondary }]}>
-              Playing with friends
-            </ThemedText>
-          </View>
-          <ThemedText style={styles.paragraph}>
-            A little extra for when you&apos;re playing with friends.
-          </ThemedText>
-          <View style={styles.rulesList}>
-            <ThemedText style={styles.rule}>
-              • Take turns guessing the temperature
-            </ThemedText>
-            <ThemedText style={styles.rule}>
-              • Guess right? Everyone else drinks
-            </ThemedText>
-            <ThemedText style={styles.rule}>
-              • Guess wrong? You drink
-            </ThemedText>
-            <ThemedText style={styles.rule}>
-              • Pass the phone around the group
-            </ThemedText>
-          </View>
-        </View>
+        <RuleSection icon="calendar" color={colors.brand} title="Weathr Daily">
+          {[
+            'Everyone in the world gets the same city each day. It changes at midnight UTC.',
+            'You get one guess per day, scored against the live temperature when you guess.',
+            'Share your result without spoiling the city, and keep your streak going.',
+            'Because the temperature is live, a friend who plays hours later may face a slightly different number.',
+          ]}
+        </RuleSection>
+
+        <RuleSection icon="swap-horizontal" color={colors.chart5} title="Hotter or Colder">
+          {[
+            'Two cities. Tap the one that is hotter right now.',
+            'Get it right and the newer city stays while a fresh one joins.',
+            'Same temperature? Free point. One wrong pick ends your run. Beat your best!',
+          ]}
+        </RuleSection>
+
+        <RuleSection icon="people" color={colors.secondary} title="Party">
+          {[
+            '2 to 12 players, one phone. Everyone guesses the same city in private, then pass the phone.',
+            'The reveal ranks everyone by degrees off. The furthest guess takes the penalty.',
+            'Penalties scale with how far off you were (default: 1 point per 5°C, max 3 per round).',
+            'The default penalty is a forfeit card: quick, silly and party-safe.',
+            'Drinking rules are optional, for adults only (18+), and need a confirmation to switch on. Nobody has to drink, water counts, and you can skip any time. Never drink and drive.',
+          ]}
+        </RuleSection>
+
+        <RuleSection icon="school" color={colors.accent} title="Practice">
+          {['10 random cities, no pressure. A good warm-up for the Daily.']}
+        </RuleSection>
 
         {/* Tips & Strategy */}
         <View style={styles.section}>
@@ -149,9 +137,8 @@ export default function RulesScreen() {
             </ThemedText>
           </View>
           <ThemedText style={styles.paragraph}>
-            Weathr combines geography knowledge with real-time weather data to create
-            a fun and educational game. Perfect for a quick challenge or a
-            group game that tests your world geography skills!
+            Weathr combines geography with real-time weather data. Scrooby the hedgehog
+            cheers you on (and sweats or shivers when you miss).
           </ThemedText>
           <ThemedText style={[styles.paragraph, { marginTop: 10 }]}>
             Temperature data is fetched in real-time, so the game is always current and
@@ -165,3 +152,23 @@ export default function RulesScreen() {
 }
 
 const styles = S.rules;
+
+function RuleSection({ icon, color, title, children }: { icon: ComponentProps<typeof Ionicons>['name']; color: string; title: string; children: string[] }) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Ionicons name={icon} size={24} color={color} />
+        <ThemedText style={[styles.sectionTitle, { color }]} accessibilityRole="header">
+          {title}
+        </ThemedText>
+      </View>
+      <View style={styles.rulesList}>
+        {children.map(rule => (
+          <ThemedText key={rule} style={styles.rule}>
+            • {rule}
+          </ThemedText>
+        ))}
+      </View>
+    </View>
+  );
+}

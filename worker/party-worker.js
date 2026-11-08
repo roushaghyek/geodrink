@@ -1,4 +1,5 @@
 import { CITIES } from './cities.js';
+import { handleWeatherRequest } from './weather-proxy';
 
 const ROOM_TTL_MS = 45 * 60 * 1000;
 const MAX_PLAYERS = 8;
@@ -75,9 +76,18 @@ function mockTemperature(lat) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === 'OPTIONS') {
       return json({});
+    }
+
+    const weatherResponse = await handleWeatherRequest(request, env, {
+      fetch: (input) => fetch(input),
+      cache: caches.default,
+      waitUntil: (promise) => ctx.waitUntil(promise),
+    });
+    if (weatherResponse) {
+      return weatherResponse;
     }
 
     const url = new URL(request.url);

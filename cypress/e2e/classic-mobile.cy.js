@@ -1,16 +1,11 @@
 const byLabel = (label) => `[aria-label="${label}"]`;
 
 function stubWeather() {
-  cy.intercept('GET', '**/data/2.5/weather**', {
-    statusCode: 200,
-    body: {
-      main: {
-        temp: 20,
-        humidity: 50,
-      },
-      weather: [{ description: 'clear sky' }],
-      wind: { speed: 3 },
-    },
+  // The e2e build points EXPO_PUBLIC_WEATHR_API_URL at /e2e-api (see package.json).
+  const observation = { tempC: 20, observedAt: Date.now(), fetchedAt: Date.now() };
+  cy.intercept('GET', '**/e2e-api/weather?**', { statusCode: 200, body: { observation } }).as('weather');
+  cy.intercept('POST', '**/e2e-api/weather/batch', (request) => {
+    request.reply({ statusCode: 200, body: { results: request.body.points.map(() => observation) } });
   }).as('weather');
 }
 
@@ -37,7 +32,7 @@ describe('classic mode mobile flow', () => {
     });
     cy.get(byLabel('Back')).click();
 
-    cy.get(byLabel('Classic Mode')).click();
+    cy.get(byLabel('Practice')).click();
     cy.get(byLabel('What is the current temperature?'), { timeout: 30000 }).should('be.visible');
     cy.wait('@weather');
 
@@ -48,21 +43,19 @@ describe('classic mode mobile flow', () => {
     cy.get(byLabel('What is the current temperature?')).should('have.value', '').and('have.focus');
 
     for (let round = 1; round <= 10; round += 1) {
-      cy.get(byLabel('What is the current temperature?')).click().type('20');
+      // Stubbed live temperature is 20°C; one round is deliberately 3° off.
+      cy.get(byLabel('What is the current temperature?')).click().type(round === 5 ? '23' : '20');
       cy.get(byLabel('Submit Guess')).should('not.be.disabled').click();
-      cy.contains('Correct! Within 2°C!').should('be.visible');
-
+      cy.get('[data-testid="degrees-off"]').should('contain', round === 5 ? '3°C off' : 'Spot on!');
+      cy.get('[data-testid="next-city-button"]').click();
       if (round < 10) {
-        cy.get(byLabel('Next City')).click();
         cy.get(byLabel('What is the current temperature?')).should('have.value', '');
-      } else {
-        cy.get(byLabel('View Results')).should('contain', 'View Results').click();
       }
     }
 
     cy.contains('Round Complete!').should('be.visible');
-    cy.contains('Final Score').should('be.visible');
-    cy.contains('Accuracy: 100%').should('be.visible');
+    cy.contains('Average off').should('be.visible');
+    cy.contains('0.3°C').should('be.visible');
     cy.contains('Exit to Home').should('be.visible');
   });
 });

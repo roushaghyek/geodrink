@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "sucrase-node tests/run-tests.ts",
-    "e2e:build": "expo export --platform web --output-dir dist-e2e",
+    "e2e:build": "EXPO_PUBLIC_WEATHR_API_URL=http://127.0.0.1:8081/e2e-api expo export --platform web --output-dir dist-e2e",
     "e2e": "yarn e2e:build && start-server-and-test \"node scripts/serve-static.js dist-e2e 8081\" http://127.0.0.1:8081 \"cypress run --e2e --browser chrome\""
   },
   "dependencies": {

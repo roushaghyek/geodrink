@@ -14,7 +14,7 @@ import {
   joinOnlinePartyRoom,
 } from '../services/online-party';
 import { OnlinePartyState, normalizeRoomCode } from '../shared/online-party';
-import { isCompleteTemperatureGuess, sanitizeTemperatureGuess, toggleMinusInGuess } from '../utils/temperature-guess';
+import { isCompleteTemperatureGuess, sanitizeTemperatureGuess, toggleMinusInGuess } from '../engine/guess-input';
 
 type ScreenMode = 'menu' | 'host' | 'join' | 'room';
 
